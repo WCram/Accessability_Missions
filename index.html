@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Accessibility Cup — Mission Control (Organic Typing)</title>
+<style>
+  :root{
+    --phosphor:#14ff6a;
+    --dim:#0aff55;
+    --glass:#021b0f;
+    --scanline:rgba(0,0,0,.18);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    display:grid;
+    place-items:center;
+    background:radial-gradient(1200px 700px at 50% 10%, #0c0f10 0%, #050607 60%, #010203 100%);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  .monitor{
+    width:min(1100px,92vw);
+    padding:1.6rem;
+    border-radius:18px;
+    background:radial-gradient(200% 100% at 50% 0%, #2a2d2e 0%, #171a1b 40%, #0d0f10 100%);
+    box-shadow:0 30px 80px rgba(0,0,0,.55), inset 0 2px 0 rgba(255,255,255,.06), inset 0 -2px 0 rgba(0,0,0,.7);
+  }
+  .screen{
+    position:relative;
+    height: 700px;
+    padding:clamp(18px,4vw,28px);
+    border-radius:14px;
+    background:radial-gradient(140% 120% at 50% 40%, #032312, #02160d 55%, #010a06 100%);
+    outline:2px solid #0a0f0c;
+    overflow:hidden;
+    filter:saturate(120%);
+    transform:perspective(1200px) translateZ(0);
+  }
+  .screen::before{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(120% 90% at 50% 50%, transparent 0%, transparent 65%, rgba(0,0,0,.45) 100%),
+      linear-gradient(to bottom, rgba(255,255,255,.04), transparent 18%, transparent 82%, rgba(0,0,0,.25));
+    pointer-events:none;
+    mix-blend-mode:screen;
+  }
+  .scanlines{
+    position:absolute; inset:0;
+    background:repeating-linear-gradient(to bottom, transparent 0px, transparent 2px, var(--scanline) 2px, var(--scanline) 3px);
+    opacity:.35; pointer-events:none;
+  }
+  .flicker{
+    position:absolute; inset:0;
+    background:radial-gradient(120% 90% at 50% 50%, rgba(255,255,255,.08), transparent 60%);
+    animation:flicker 2.4s infinite;
+    mix-blend-mode:soft-light;
+    pointer-events:none;
+  }
+  @keyframes flicker{
+    0%,19%,21%,63%,65%,100%{opacity:.08}
+    20%,64%{opacity:.02}
+    50%{opacity:.11}
+  }
+
+  .terminal{
+    color:var(--phosphor);
+    text-shadow:
+      0 0 1px var(--phosphor),
+      0 0 6px var(--dim),
+      0 0 20px rgba(20,255,106,.22);
+    line-height:1.45;
+    font-size:clamp(14px,1.6vw,18px);
+    white-space:pre-wrap;
+  }
+
+  #output{
+    min-height:8rem;
+  }
+
+  /* Blinking block cursor */
+  .cursor{
+    display:inline-block;
+    width:0.6ch;
+    margin-left:0.1ch;
+    background:var(--phosphor);
+    animation:blink 1s steps(1,end) infinite;
+  }
+  @keyframes blink{50%{opacity:0}}
+
+  /* Respect reduced motion */
+  @media (prefers-reduced-motion: reduce){
+    .flicker{animation:none}
+    .cursor{animation:none}
+  }
+</style>
+</head>
+<body>
+  <div class="monitor">
+    <div class="screen" id="screen">
+      <div class="scanlines"></div>
+      <div class="flicker"></div>
+
+      <div class="terminal" role="log" aria-live="polite" aria-atomic="false">
+        <div id="output"></div><span class="cursor" aria-hidden="true"></span>
+        <noscript>🕵️‍♀️ ACCESSIBILITY CUP: MISSION CONTROL
+Welcome, Agents. Review your monthly missions, complete side tasks, and submit evidence to HQ.
+All transmissions are classified.
+🎯 Mission 1 — Operation Clarity (November)
+Focus: Closed Captioning & Alt Text
+Objective: Make all videos speak via captions and all images accessible via alt text.
+Deadline: November 30
+🧩 Side Missions (Customizable by House/Department)
+House Inclusio: Audit 3 courses for missing alt text
+House Luminis: Caption 2 Panopto videos
+House Adaptus: Create a “Caption How-To” resource
+agent@mission:~$</noscript>
+      </div>
+    </div>
+  </div>
+
+<script>
+/*
+  Organic typer with human-like cadence:
+  - baseDelay: average time between keystrokes
+  - jitter: ± randomness per char
+  - punctuation pauses after . , ! ? : ; ) and newline
+  - auto-scrolls the screen as content grows
+  - respects prefers-reduced-motion by dumping text instantly
+*/
+
+const text = `
+🕵️‍♀️ ACCESSIBILITY CUP: MISSION CONTROL
+
+Welcome, Agents. Review your monthly missions, complete side tasks, and submit evidence to HQ.
+
+All transmissions are classified.
+
+🎯 Mission 1 — Operation Clarity (November)
+Focus: Closed Captioning & Alt Text
+
+Objective: Make all videos speak via captions and all images accessible via alt text.
+
+Deadline: November 30
+
+🧩 Side Missions (Customizable by House/Department)
+House Inclusio: Audit 3 courses for missing alt text
+House Luminis: Caption 2 Panopto videos
+House Adaptus: Create a “Caption How-To” resource
+
+agent@mission:~$`;
+
+const output = document.getElementById('output');
+const screen = document.getElementById('screen');
+
+const settings = {
+  baseDelay: 26,        // ms baseline per character
+  jitter: 22,           // ms random +/- per character
+  pauses: new Map([
+    ['.', 180], [',', 120], ['!', 220], ['?', 220],
+    [':', 150], [';', 150], [')', 100],
+    ['\n', 180]
+  ])
+};
+
+// If user prefers reduced motion, print instantly
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+function humanDelay(ch){
+  const { baseDelay, jitter, pauses } = settings;
+  const random = baseDelay + (Math.random()*2 - 1) * jitter;
+  const punctuationPause = pauses.get(ch) || 0;
+  return Math.max(0, random) + punctuationPause;
+}
+
+async function typeText(el, str){
+  if(reduceMotion){
+    el.textContent = str;
+    return;
+  }
+  // Use an iterator to preserve surrogate pairs (emoji) safely
+  for(const ch of Array.from(str)){
+    el.textContent += ch;
+    // Scroll screen to bottom if content overflows
+    screen.scrollTop = screen.scrollHeight;
+    await sleep(humanDelay(ch));
+  }
+}
+
+(async ()=>{
+  await typeText(output, text.trimStart());
+})();
+</script>
+</body>
+</html>
